@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <title>Замовлення</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #ffffff;
+      color: #111827;
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .wrap {
+      width: 100%;
+      max-width: 360px;
+      padding: 24px 16px;
+      text-align: center;
+    }
+    h1 {
+      margin: 0 0 24px;
+      font-size: 1.4rem;
+      font-weight: 600;
+    }
+    .buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    button {
+      padding: 10px 16px;
+      border-radius: 999px;
+      border: 1px solid #000000;
+      background: #ffffff;
+      color: #000000;
+      cursor: pointer;
+      font-size: 0.95rem;
+    }
+    button:hover {
+      background: #f3f4f6;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Замовлення</h1>
+    <div class="buttons">
+      <button id="btn-order">Замовити</button>
+      <button id="btn-already">Вже замовив</button>
+      <button id="btn-offer">Публічна оферта</button>
+    </div>
+  </div>
+
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const API_BASE = params.get("api") || "http://127.0.0.1:8000";
+
+    const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+    if (tg) {
+      tg.ready();
+    }
+
+    function getTelegramUser() {
+      const user = tg && tg.initDataUnsafe ? tg.initDataUnsafe.user : null;
+      if (!user) return null;
+      return {
+        telegram_user_id: user.id ?? null,
+        telegram_username: user.username ?? null,
+      };
+    }
+
+    async function callApi(method, path, body) {
+      try {
+        const headers = {};
+        if (body) headers["Content-Type"] = "application/json";
+        if (tg && tg.initData) headers["X-Telegram-Init-Data"] = tg.initData;
+
+        const payload = body ? { ...body } : undefined;
+        const user = getTelegramUser();
+        if (payload && user) Object.assign(payload, user);
+
+        const res = await fetch(API_BASE + path, {
+          method,
+          headers,
+          body: payload ? JSON.stringify(payload) : undefined,
+        });
+        if (!res.ok) {
+          const text = await res.text();
+          throw text || res.statusText;
+        }
+        return await res.json().catch(() => ({}));
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    document.getElementById("btn-order").addEventListener("click", async () => {
+      await callApi("POST", "/orders", {
+        customer_name: "Demo Client",
+        contact: "telegram: @demo",
+        description: "Демо-замовлення з веб-сторінки",
+        budget_uah: 1000,
+      });
+    });
+
+    document.getElementById("btn-already").addEventListener("click", async () => {
+      const id = prompt("Введіть ID вашого замовлення:");
+      await callApi("POST", "/orders/already", { order_id: id || null });
+    });
+
+    document.getElementById("btn-offer").addEventListener("click", async () => {
+      window.open(API_BASE + "/offer/pdf", "_blank");
+    });
+  </script>
+</body>
+</html>
+
