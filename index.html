@@ -64,6 +64,9 @@
     if (tg) {
       tg.ready();
     }
+    if (!params.get("api")) {
+      console.warn("Missing ?api=... parameter; API calls will likely fail inside Telegram.");
+    }
 
     function getTelegramUser() {
       const user = tg && tg.initDataUnsafe ? tg.initDataUnsafe.user : null;
@@ -79,6 +82,9 @@
         const headers = {};
         if (body) headers["Content-Type"] = "application/json";
         if (tg && tg.initData) headers["X-Telegram-Init-Data"] = tg.initData;
+        // ngrok free sometimes shows an interstitial "browser warning" page for API calls.
+        // This header tells ngrok to skip it.
+        headers["ngrok-skip-browser-warning"] = "1";
 
         const payload = body ? { ...body } : undefined;
         const user = getTelegramUser();
@@ -95,6 +101,7 @@
         }
         return await res.json().catch(() => ({}));
       } catch (e) {
+        alert("Не вдалося викликати API. Перевір API_PUBLIC_URL/ngrok.\n\n" + String(e));
         console.error(e);
       }
     }
